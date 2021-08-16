@@ -87,7 +87,7 @@ dispatcher.onError(function(req, res) {
 	if (filePath == './') 		filePath = './index.htm';
 	if (filePath == './edit')	filePath = './edit.htm';
 
-	var contentType = mime.lookup(filePath);
+	var contentType = mime.getType(filePath);
 
 	console.log('File='+filePath+' Type='+contentType);
 
