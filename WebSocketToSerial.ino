@@ -243,11 +243,11 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
   SERIAL_DEBUG.printf("  -> \"%s\"\r\n", msg);
 
   // Custom command to talk to device
-  if (!strcmp_P(msg,PSTR("ping"))) {
+  if (!strcmp_P(msg,PSTR("/ping"))) {
     if (client)
       client->printf_P(PSTR("received your [[b;cyan;]ping], here is my [[b;cyan;]pong]"));
 
-  } else if (!strcmp_P(msg,PSTR("swap"))) {
+  } else if (!strcmp_P(msg,PSTR("/swap"))) {
     Serial.swap();
     serialSwapped =! serialSwapped;
     if (client)
@@ -255,7 +255,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
                               serialSwapped?13:3,serialSwapped?15:1);
 
   // Debug information
-  } else if ( !strncmp_P(msg,PSTR("debug"), 5) ) {
+  } else if ( !strncmp_P(msg,PSTR("/debug"), 5) ) {
     int br = SERIAL_DEVICE.baudRate();
     if (client) {
       client->printf_P(PSTR("Baud Rate : [[b;green;]%d] bps"), br);
@@ -265,11 +265,11 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     }
 
   // baud only display current Serial Speed
-  } else if ( client && l==4 && !strncmp_P(msg,PSTR("baud"), 4) ) {
+  } else if ( client && l==4 && !strncmp_P(msg,PSTR("/baud"), 4) ) {
     client->printf_P(PSTR("Current Baud Rate is [[b;green;]%d] bps"), SERIAL_DEVICE.baudRate());
 
   // baud speed only display current Serial Speed
-  } else if (l>=6 && !strncmp_P(msg,PSTR("baud "), 5) ) {
+  } else if (l>=6 && !strncmp_P(msg,PSTR("/baud "), 5) ) {
     uint32_t br = atoi(&msg[5]);
     if ( br==115200 || br==57600 || br==19200 || br==9600 ) {
       #ifdef MOD_RN2483
@@ -288,11 +288,11 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
 
 #ifdef RGB_LED_PIN  
   // rgb led current luminosity
-  } else if ( client && l==3 && !strncmp_P(msg,PSTR("rgb"), 3) ) {
+  } else if ( client && l==3 && !strncmp_P(msg,PSTR("/rgb"), 3) ) {
     client->printf_P(PSTR("Current RGB Led Luminosity is [[b;green;]%d%%]"), rgb_luminosity);
 
   // rgb led luminosity
-  } else if (l>=5 && !strncmp_P(msg,PSTR("rgb "), 4) ) {
+  } else if (l>=5 && !strncmp_P(msg,PSTR("/rgb "), 4) ) {
     uint8_t lum = atoi(&msg[4]);
     if ( lum>=0 && lum<=100) {
       rgb_luminosity = lum;
@@ -306,12 +306,12 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     } 
 #endif
 
-  } else if (client && !strcmp_P(msg,PSTR("hostname")) ) {
+  } else if (client && !strcmp_P(msg,PSTR("/hostname")) ) {
     client->printf_P(PSTR("[[b;green;]%s]"), thishost);
 
   // Dir files on SPIFFS system
   // --------------------------
-  } else if (!strcmp_P(msg,PSTR("ls")) ) {
+  } else if (!strcmp_P(msg,PSTR("/ls")) ) {
     Dir dir = SPIFFS.openDir("/");
     uint16_t cnt = 0;
     String out = PSTR("SPIFFS Files\r\n Size   Name");
@@ -331,7 +331,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
 
   // read file and send to serial
   // ----------------------------
-  } else if (l>=6 && !strncmp_P(msg,PSTR("read "), 5) ) {
+  } else if (l>=6 && !strncmp_P(msg,PSTR("/read "), 5) ) {
     char * pfname = &msg[5];
 
     if ( *pfname != '/' )
@@ -403,7 +403,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
 
   // show file content
   // -----------------
-  } else if (l>=6 && !strncmp_P(msg,PSTR("cat "), 4) ) {
+  } else if (l>=6 && !strncmp_P(msg,PSTR("/cat "), 4) ) {
     char * pfname = &msg[4];
 
     if ( *pfname != '/' )
@@ -457,7 +457,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
 
   // no delay in client (websocket)
   // ----------------------------
-  } else if (client==NULL && l>=7 && !strncmp_P(msg,PSTR("delay "), 6) ) {
+  } else if (client==NULL && l>=7 && !strncmp_P(msg,PSTR("/delay "), 6) ) {
     uint16_t v= atoi(&msg[6]);
     if (v>=0 && v<=60000 ) {
       while(v--) {
@@ -467,7 +467,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     }
 
   // ----------------------------
-  } else if (l>=7 && !strncmp_P(msg,PSTR("reset "), 6) ) {
+  } else if (l>=7 && !strncmp_P(msg,PSTR("/reset "), 6) ) {
     int v= atoi(&msg[6]);
     if (v>=0 && v<=16) {
       pinMode(v, OUTPUT);
@@ -484,13 +484,13 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
       }
     }
 
-  } else if (client && !strcmp_P(msg,PSTR("fw"))) {
+  } else if (client && !strcmp_P(msg,PSTR("/fw"))) {
     client->printf_P(PSTR("Firmware version [[b;green;]%s %s]"), __DATE__, __TIME__);
 
-  } else if (client && !strcmp_P(msg,PSTR("whoami"))) {
+  } else if (client && !strcmp_P(msg,PSTR("/whoami"))) {
     client->printf_P(PSTR("[[b;green;]You are client #%u at index[%d&#93;]"),client->id(), index );
 
-  } else if (client && !strcmp_P(msg,PSTR("who"))) {
+  } else if (client && !strcmp_P(msg,PSTR("/who"))) {
     uint8_t cnt = 0;
     // Count client
     for (uint8_t i=0; i<MAX_WS_CLIENT ; i++) {
@@ -506,10 +506,10 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
       }
     }
 
-  } else if (client && !strcmp_P(msg,PSTR("heap"))) {
+  } else if (client && !strcmp_P(msg,PSTR("/heap"))) {
     client->printf_P(PSTR("Free Heap [[b;green;]%ld] bytes"), ESP.getFreeHeap());
 
-  } else if (client && (*msg=='?' || !strcmp_P(msg,PSTR("help")))) {
+  } else if (client && (!strcmp_P(msg,PSTR("/?")) || !strcmp_P(msg,PSTR("/help")))) {
     client->printf_P(PSTR(HELP_TEXT));
 
   // all other to serial Proxy

@@ -99,22 +99,22 @@ rgb_anim_state_e;
 
 #define HELP_TEXT "[[b;green;]WebSocket2Serial HELP]\n" \
                   "---------------------\n" \
-                  "[[b;cyan;]?] or [[b;cyan;]help] show this help\n" \
-                  "[[b;cyan;]swap]      swap serial UART pin to GPIO15/GPIO13\n" \
-                  "[[b;cyan;]ping]      send ping command\n" \
-                  "[[b;cyan;]heap]      show free RAM\n" \
-                  "[[b;cyan;]whoami]    show client # we are\n" \
-                  "[[b;cyan;]who]       show all clients connected\n" \
-                  "[[b;cyan;]fw]        show firmware date/time\n"  \
-                  "[[b;cyan;]baud]      show current serial baud rate\n" \
-                  "[[b;cyan;]baud n]    set serial baud rate to n\n" \
-                  "[[b;cyan;]rgb l]     set RGB Led luminosity l (0..100)\n" \
-                  "[[b;cyan;]reset p]   do a reset pulse on gpio pin number p\n" \
-                  "[[b;cyan;]hostname]  show network hostname of device\n" \
-                  "[[b;cyan;]ls]        list SPIFFS files\n" \
-                  "[[b;cyan;]debug]     show debug information\n" \
-                  "[[b;cyan;]cat file]  display content of file\n"  \
-                  "[[b;cyan;]read file] send SPIFFS file to serial (read)" 
+                  "[[b;cyan;]/?] or [[b;cyan;]/help] show this help\n" \
+                  "[[b;cyan;]/swap]      swap serial UART pin to GPIO15/GPIO13\n" \
+                  "[[b;cyan;]/ping]      send ping command\n" \
+                  "[[b;cyan;]/heap]      show free RAM\n" \
+                  "[[b;cyan;]/whoami]    show client # we are\n" \
+                  "[[b;cyan;]/who]       show all clients connected\n" \
+                  "[[b;cyan;]/fw]        show firmware date/time\n"  \
+                  "[[b;cyan;]/baud]      show current serial baud rate\n" \
+                  "[[b;cyan;]/baud n]    set serial baud rate to n\n" \
+                  "[[b;cyan;]/rgb l]     set RGB Led luminosity l (0..100)\n" \
+                  "[[b;cyan;]/reset p]   do a reset pulse on gpio pin number p\n" \
+                  "[[b;cyan;]/hostname]  show network hostname of device\n" \
+                  "[[b;cyan;]/ls]        list SPIFFS files\n" \
+                  "[[b;cyan;]/debug]     show debug information\n" \
+                  "[[b;cyan;]/cat file]  display content of file\n"  \
+                  "[[b;cyan;]/read file] send SPIFFS file to serial (read)" 
 
 // Web Socket client state
 typedef struct {

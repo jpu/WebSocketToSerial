@@ -43,18 +43,20 @@ Terminal Commands:
 
 Commands once connected to remote device:
 -----------------------------------------
-- `!close` or CTRL-D : close connection
-- `swap` swap ESP8266 UART pin between GPIO1/GPIO3 with GPIO15/GPIO13
-- `ping` typing ping on terminal and ESP8266 will send back pong
-- `?` or `help` show help
-- `heap` show ESP8266 free RAM
-- `whoami` show WebSocket client # we are
-- `who` show all WebSocket clients connected
-- `fw` show firmware date/time
-- `baud n` set ESP8266 serial baud rate to n (to be compatble with device driven)
-- `reset p` reset gpio pin number p
-- `ls` list SPIFFS files
-- `read file` execute SPIFFS file command
+- `/close` or `/quit` or CTRL-D: close connection
+- `/exit` exit the session, leave connection open
+- `/cls` or `/clear` clear the screen
+- `/swap` swap ESP8266 UART pin between GPIO1/GPIO3 with GPIO15/GPIO13
+- `/ping` typing ping on terminal and ESP8266 will send back pong
+- `/?` or `/help` show help
+- `/heap` show ESP8266 free RAM
+- `/whoami` show WebSocket client # we are
+- `/who` show all WebSocket clients connected
+- `/fw` show firmware date/time
+- `/baud n` set ESP8266 serial baud rate to n (to be compatble with device driven)
+- `/reset p` reset gpio pin number p
+- `/ls` list SPIFFS files
+- `/read file` execute SPIFFS file command
 
 
 Every command in file `startup.ini` are executed in setup() you can chain with other files. 

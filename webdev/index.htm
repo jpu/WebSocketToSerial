@@ -58,20 +58,19 @@ function startWS(url) {
     //console.log("ws.onopen() TL=%d ws=%s",term.level(),ws?"true":"null");
     if (term.level()<2) {
       term.push(function(command, term) { 
-        // no Interpreter command '!', send 
-        if ( command.charAt(0) != '!' ) {
-          // Send to WebSocket
+        // Interpreter commands, act locally in JS
+        if (command == "/close" || command == "/quit"){
+          stopWS(true);
+        }  else if (command == "/cls") {
+          this.clear();
+        } else {
+          // not an interpreter command, send to WebSocket
           if (ws) {
             ws.send(command); 
           } else {
             term.error("Not connected");
             term.pop()
           }
-
-        } else {
-          // Interpreter command '!', don't send but interpret
-          if (command == "!close") stopWS(true);
-          if (command == "!cls") this.clear();
         } 
       },
       { keydown: function(e, term) { 
@@ -88,8 +87,8 @@ function startWS(url) {
 
     //console.log("ws connected ");
     term.echo("[[b;green;]Connected to "+url+"]");
-    term.echo("Press ctrl-d or type [[b;cyan;]!close] to disconnect");
-    term.echo("Type [[b;cyan;]ping] so see pong response");
+    term.echo("Press ctrl-d or type [[b;cyan;]/close] or [[b;cyan;]/quit] to disconnect");
+    term.echo("Type [[b;cyan;]/ping] so see pong response");
     term.set_prompt(url+"[[;green;] #]");
   };
 
