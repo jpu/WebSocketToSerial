@@ -7,43 +7,11 @@
 #include <Hash.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <SPIFFSEditor.h>
 #include <SoftwareSerial.h>
 
 // Main project include file
 #include "WebSocketToSerial.h"
 
-// RGB Led
-#ifdef RGB_LED_PIN
-
-  #ifdef RGBW_LED
-    MyPixelBus rgb_led(RGB_LED_COUNT, RGB_LED_PIN);
-    RgbwColor rgb_led_color; // RGBW Led color
-  #else
-    MyPixelBus rgb_led(RGB_LED_COUNT, RGB_LED_PIN);
-    RgbColor rgb_led_color; // RGB Led color
-  #endif
-
-  // general purpose variable used to store effect state
-  rgb_anim_state_e  rgb_anim_state;  
-  uint8_t rgb_luminosity = 20 ; // Luminosity from 0 to 100%
-
-  // one entry per pixel to match the animation timing manager
-  NeoPixelAnimator animations(1); 
-  MyAnimationState animationState[1];
-
-#endif
-
-#ifdef MOD_RN2483
-  // If you want to use soft serial, not super reliable with AsyncTCP
-  //SoftwareSerial SoftSer(12, 13, false, 128);
-  app_state_e app_state ;
-#endif
-
-const char* ssid = "*******";
-const char* password = "*******";
-const char* http_username = "admin";
-const char* http_password = "admin";
 char thishost[17];
 
 String inputString = "";
@@ -56,165 +24,6 @@ AsyncWebSocket ws("/ws");
 // State Machine for WebSocket Client;
 _ws_client ws_client[MAX_WS_CLIENT]; 
 
-#ifndef RGB_LED_PIN
-void LedRGBFadeAnimUpdate(void * param) {}
-void LedRGBAnimate(uint16_t param) {}
-void LedRGBON (uint16_t hue, bool now) {}
-void LedRGBOFF(void) {}
-#else
-/* ======================================================================
-Function: LedRGBBlinkAnimUpdate
-Purpose : Blink Anim update for RGB Led
-Input   : -
-Output  : - 
-Comments: grabbed from NeoPixelBus library examples
-====================================================================== */
-void LedRGBBlinkAnimUpdate(const AnimationParam& param)
-{
-  // this gets called for each animation on every time step
-  // progress will start at 0.0 and end at 1.0
-  rgb_led.SetPixelColor(0, RgbColor(0));
-
-  // 25% on so 75% off
-  if (param.progress < 0.25f) {
-    rgb_led.SetPixelColor(0, rgb_led_color);
-  }
-}
-
-/* ======================================================================
-Function: LedRGBFadeAnimUpdate
-Purpose : Fade in and out effect for RGB Led
-Input   : -
-Output  : - 
-Comments: grabbed from NeoPixelBus library examples
-====================================================================== */
-void LedRGBFadeAnimUpdate(const AnimationParam& param)
-{
-  // this gets called for each animation on every time step
-  // progress will start at 0.0 and end at 1.0
-  // apply a exponential curve to both front and back
-  float progress = NeoEase::QuadraticInOut(param.progress) ;
-
-  // we use the blend function on the RgbColor to mix
-  // color based on the progress given to us in the animation
-  #ifdef RGBW_LED
-    RgbwColor updatedColor = RgbwColor::LinearBlend(  
-                                animationState[param.index].RgbStartingColor, 
-                                animationState[param.index].RgbEndingColor, 
-                                progress);
-    rgb_led.SetPixelColor(0, updatedColor);
-  #else
-    RgbColor updatedColor = RgbColor::LinearBlend(  
-                                animationState[param.index].RgbStartingColor, 
-                                animationState[param.index].RgbEndingColor, 
-                                progress);
-    rgb_led.SetPixelColor(0, updatedColor);
-  #endif
-}
-
-
-/* ======================================================================
-Function: LedRGBAnimate
-Purpose : Manage RGBLed Animations
-Input   : parameter (here animation time in ms)
-Output  : - 
-Comments: 
-====================================================================== */
-void LedRGBAnimate(uint16_t param)
-{
-  if ( animations.IsAnimating() ) {
-    // the normal loop just needs these two to run the active animations
-    animations.UpdateAnimations();
-    rgb_led.Show();
-
-  } else {
-
-    // We start animation with current led color
-    animationState[0].RgbStartingColor = rgb_led.GetPixelColor(0);
-
-    // Node default fade in
-    if ( rgb_anim_state==RGB_ANIM_NONE )
-      rgb_anim_state=RGB_ANIM_FADE_IN ;
-
-    // Fade in 
-    if ( rgb_anim_state==RGB_ANIM_NONE || rgb_anim_state==RGB_ANIM_FADE_IN ) {
-      animationState[0].RgbEndingColor = rgb_led_color; // selected color
-      rgb_anim_state=RGB_ANIM_FADE_OUT; // Next
-      animations.StartAnimation(0, param, LedRGBFadeAnimUpdate);
-
-    // Fade out
-    } else if ( rgb_anim_state==RGB_ANIM_FADE_OUT ) {
-      animationState[0].RgbEndingColor = RgbColor(0); // off
-      rgb_anim_state=RGB_ANIM_FADE_IN; // Next
-      animations.StartAnimation(0, param, LedRGBFadeAnimUpdate);
-
-    // Blink ON
-    } else if ( rgb_anim_state==RGB_ANIM_BLINK_ON ) {
-      rgb_anim_state=RGB_ANIM_BLINK_OFF; // Next
-      animations.StartAnimation(0, param, LedRGBBlinkAnimUpdate);
-
-    // Blink OFF
-    } else if ( rgb_anim_state==RGB_ANIM_BLINK_OFF ) {
-      rgb_anim_state=RGB_ANIM_BLINK_ON; // Next
-      animations.StartAnimation(0, param, LedRGBBlinkAnimUpdate);
-    }
-  }
-}
-
-/* ======================================================================
-Function: LedRGBON
-Purpose : Set RGB LED strip color, but does not lit it
-Input   : Hue (0..360)
-          if led should be lit immediatly
-Output  : - 
-Comments: 
-====================================================================== */
-void LedRGBON (uint16_t hue, bool doitnow)
-{
-  // Convert to neoPixel API values
-  // H (is color from 0..360) should be between 0.0 and 1.0
-  // S is saturation keep it to 1
-  // L is brightness should be between 0.0 and 0.5
-  // rgb_luminosity is between 0 and 100 (percent)
-  RgbColor target = HslColor( hue / 360.0f, 1.0f, 0.005f * rgb_luminosity);
-  rgb_led_color = target;
-
-  // do it now ?
-  if (doitnow) {
-    // Stop animation
-    animations.StopAnimation(0);
-    animationState[0].RgbStartingColor = target;
-    animationState[0].RgbEndingColor = RgbColor(0);
-
-    // set the strip
-    rgb_led.SetPixelColor(0, target);
-    rgb_led.Show();  
-  }
-}
-
-/* ======================================================================
-Function: LedRGBOFF 
-Purpose : light off the RGB LED strip
-Input   : -
-Output  : - 
-Comments: -
-====================================================================== */
-void LedRGBOFF(void)
-{
-  // stop animation, reset params
-  animations.StopAnimation(0);
-  animationState[0].RgbStartingColor = RgbColor(0);
-  animationState[0].RgbEndingColor = RgbColor(0);
-  rgb_led_color = RgbColor(0);
-  rgb_anim_state=RGB_ANIM_NONE;
-
-  // clear the strip
-  rgb_led.SetPixelColor(0, RgbColor(0));
-  rgb_led.Show();  
-}
-#endif
-
-
 /* ======================================================================
 Function: execCommand
 Purpose : translate and execute command received from serial/websocket
@@ -226,7 +35,6 @@ Comments: -
 void execCommand(AsyncWebSocketClient * client, char * msg) {
   uint16_t l = strlen(msg);
   uint8_t index=MAX_WS_CLIENT;
-
 
   // Search if w're known client
   if (client) {
@@ -259,9 +67,6 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     int br = SERIAL_DEVICE.baudRate();
     if (client) {
       client->printf_P(PSTR("Baud Rate : [[b;green;]%d] bps"), br);
-      #ifdef MOD_RN2483
-      client->printf_P(PSTR("States : appli=[[b;green;]%d] radio=[[b;green;]%d]"), app_state, radioState() );
-      #endif
     }
 
   // baud only display current Serial Speed
@@ -272,9 +77,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
   } else if (l>=6 && !strncmp_P(msg,PSTR("/baud "), 5) ) {
     uint32_t br = atoi(&msg[5]);
     if ( br==115200 || br==57600 || br==19200 || br==9600 ) {
-      #ifdef MOD_RN2483
-        radioInit(br);
-      #elif defined (MOD_TERMINAL)
+      #ifdef MOD_TERMINAL
         SERIAL_DEVICE.begin(br);      
       #endif
       if (client)
@@ -285,175 +88,8 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
         client->printf_P(PSTR("Valid baud rate are 115200, 57600, 19200 or 9600"));
       }
     } 
-
-#ifdef RGB_LED_PIN  
-  // rgb led current luminosity
-  } else if ( client && l==3 && !strncmp_P(msg,PSTR("/rgb"), 3) ) {
-    client->printf_P(PSTR("Current RGB Led Luminosity is [[b;green;]%d%%]"), rgb_luminosity);
-
-  // rgb led luminosity
-  } else if (l>=5 && !strncmp_P(msg,PSTR("/rgb "), 4) ) {
-    uint8_t lum = atoi(&msg[4]);
-    if ( lum>=0 && lum<=100) {
-      rgb_luminosity = lum;
-      if (client)
-        client->printf_P(PSTR("RGB Led Luminosity is now [[b;green;]%d]"), lum);
-    } else {
-      if (client) {
-        client->printf_P(PSTR("[[b;red;]Error: Invalid RGB Led Luminosity value %d]"), lum);
-        client->printf_P(PSTR("Valid is from 0 (off) to 100 (full)"));
-      }
-    } 
-#endif
-
   } else if (client && !strcmp_P(msg,PSTR("/hostname")) ) {
     client->printf_P(PSTR("[[b;green;]%s]"), thishost);
-
-  // Dir files on SPIFFS system
-  // --------------------------
-  } else if (!strcmp_P(msg,PSTR("/ls")) ) {
-    Dir dir = SPIFFS.openDir("/");
-    uint16_t cnt = 0;
-    String out = PSTR("SPIFFS Files\r\n Size   Name");
-    char buff[16];
-
-    while ( dir.next() ) {
-      cnt++;
-      File entry = dir.openFile("r");
-      sprintf_P(buff, "\r\n%6d ", entry.size());
-      //client->printf_P(PSTR("%5d %s"), entry.size(), entry.name());
-      out += buff;
-      out += String(entry.name()).substring(1);
-      entry.close();
-    }
-    if (client) 
-      client->printf_P(PSTR("%s\r\nFound %d files"), out.c_str(), cnt);
-
-  // read file and send to serial
-  // ----------------------------
-  } else if (l>=6 && !strncmp_P(msg,PSTR("/read "), 5) ) {
-    char * pfname = &msg[5];
-
-    if ( *pfname != '/' )
-      *--pfname = '/';
-
-    // file exists
-    if (SPIFFS.exists(pfname)) {
-      // open file for reading.
-      File ofile = SPIFFS.open(pfname, "r");
-      if (ofile) {
-        char c;
-        String str="";
-        if (client)
-          client->printf_P(PSTR("Reading file %s"), pfname);
-        // Read until end
-        while (ofile.available())
-        {
-          // Read all chars
-          c = ofile.read();
-          if (c=='\r') {
-            // Nothing to do 
-          } else if (c == '\n') {
-            str.trim();
-            if (str!="") {
-              char c = str.charAt(0);
-              // Not a comment
-              if ( c != '#' ) {
-                // internal command for us ?
-                if ( c=='!' || c=='$' ) {
-                  // Call ourselve to execute internal, command
-                  execCommand(client, (char*) (str.c_str())+1);
-
-                  // Don't read serial in async (websocket)
-                  if (c=='$' && !client) {
-                    String ret = SERIAL_DEVICE.readStringUntil('\n');
-                    ret.trim();
-                    SERIAL_DEBUG.printf("  <- \"%s\"\r\n", ret.c_str());
-                  }
-                } else {
-                  // send content to Serial (passtrough)
-                  SERIAL_DEVICE.print(str);
-                  SERIAL_DEVICE.print("\r\n");
-
-                  // and to do connected client
-                  if (client)
-                    client->printf_P(PSTR("[[b;green;]%s]"), str.c_str());
-                }
-              } else {
-                // and to do connected client
-                if (client)
-                  client->printf_P(PSTR("[[b;grey;]%s]"), str.c_str());
-              }
-            }
-            str = "";
-          } else {
-            // prepare line
-            str += c;
-          }
-        }
-        ofile.close();
-      } else {
-        if (client)
-          client->printf_P(PSTR("[[b;red;]Error: opening file %s]"), pfname);
-      }
-    } else {
-      if (client)
-        client->printf_P(PSTR("[[b;red;]Error: file %s not found]"), pfname);
-    }
-
-  // show file content
-  // -----------------
-  } else if (l>=6 && !strncmp_P(msg,PSTR("/cat "), 4) ) {
-    char * pfname = &msg[4];
-
-    if ( *pfname != '/' )
-      *--pfname = '/';
-
-    // file exists
-    if (SPIFFS.exists(pfname)) {
-      // open file for reading.
-      File ofile = SPIFFS.open(pfname, "r");
-      if (ofile) {
-
-        size_t size = ofile.size();
-        size_t chunk;
-        char * p;
-
-        client->printf_P(PSTR("content of file %s size %u bytes"), pfname, size);
-
-        // calculate chunk size (max 1Kb)
-        chunk = size>=1024?1024:size;
-
-        // Allocate a buffer to store contents of the file + \0
-        p = (char *) malloc( chunk+1 );
-
-        while (p && size) {
-          ofile.readBytes(p, chunk);
-          *(p+chunk) = '\0';
-
-          if (client)
-            client->text(p);
-
-          // This is done 
-          size -= chunk;
-
-          // Last chunk
-          if (size<chunk)
-            chunk = size;
-        }
-
-        // Free up our buffer
-        if (p)
-          free(p);
-
-      } else {
-        if (client)
-          client->printf_P(PSTR("[[b;red;]Error: opening file %s]"), pfname);
-      }
-    } else {
-      if (client)
-        client->printf_P(PSTR("[[b;red;]Error: file %s not found]"), pfname);
-    }
 
   // no delay in client (websocket)
   // ----------------------------
@@ -461,7 +97,6 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     uint16_t v= atoi(&msg[6]);
     if (v>=0 && v<=60000 ) {
       while(v--) {
-        LedRGBAnimate(500);
         delay(1);
       }
     }
@@ -645,18 +280,13 @@ void setup() {
   // You can't have _ or . in hostname 
   sprintf_P(thishost, PSTR("WS2Serial-%04X"), ESP.getChipId() & 0xFFFF);
 
-  #ifdef MOD_RN2483
-    SERIAL_DEVICE.begin(57600);
-  #else
-    SERIAL_DEVICE.begin(115200);
-  #endif
+  SERIAL_DEVICE.begin(115200);
 
   SERIAL_DEBUG.begin(115200);
   SERIAL_DEBUG.print(F("\r\nBooting on "));
   SERIAL_DEBUG.println(ARDUINO_BOARD);
   SPIFFS.begin();
   WiFi.mode(WIFI_STA);
-
 
   // No empty sketch SSID, try connect 
   if (*ssid!='*' && *password!='*' ) {
@@ -669,8 +299,6 @@ void setup() {
 
   // Loop until connected
   while ( WiFi.status() !=WL_CONNECTED ) {
-    LedRGBON(COLOR_ORANGE_YELLOW);
-    LedRGBAnimate(500);
     yield(); 
   }
 
@@ -684,9 +312,6 @@ void setup() {
     // Clean SPIFFS
     SPIFFS.end();
 
-    // Light of the LED, stop animation
-    LedRGBOFF();
-
     ws.textAll("OTA Update Started");
     ws.enable(false);
     ws.closeAll();
@@ -694,46 +319,30 @@ void setup() {
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    uint8_t percent = progress / (total / 100);
-    // hue from 0.0 to 1.0 (rainbow) with 33% (of 0.5f) luminosity
-    #ifdef RGB_LED_PIN
-      rgb_led.SetPixelColor(0, HslColor(percent * 0.01f , 1.0f, 0.17f ));
-      rgb_led.Show();  
-    #endif
+    // Do nothing
   });
 
   ArduinoOTA.onEnd([]() { 
-    #ifdef RGB_LED_PIN
-      rgb_led.SetPixelColor(0, HslColor(COLOR_GREEN/360.0f, 1.0f, 0.25f));
-      rgb_led.Show();  
-    #endif
+    // Do nothing
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    #ifdef RGB_LED_PIN
-      rgb_led.SetPixelColor(0, HslColor(COLOR_RED/360.0f, 1.0f, 0.25f));
-      rgb_led.Show();  
-    #endif
     ESP.restart(); 
   });
 
   ArduinoOTA.begin();
   MDNS.addService("http","tcp",80);
 
-
   // Enable and start websockets
   ws.onEvent(onEvent);
   server.addHandler(&ws);
   
-  server.addHandler(new SPIFFSEditor(http_username,http_password));
-
   server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", String(ESP.getFreeHeap()));
   });
 
   server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.htm");
   
-
   server.onNotFound([](AsyncWebServerRequest *request){
     SERIAL_DEBUG.printf("NOT_FOUND: ");
     if(request->method() == HTTP_GET)
@@ -802,28 +411,19 @@ void setup() {
   pinMode(BUILTIN_LED, OUTPUT);
   #endif
 
-  #if defined (BTN_GPIO)
-    pinMode(BTN_GPIO, INPUT);
-  #endif
-
   // Start Server
   WiFiMode_t con_type = WiFi.getMode();
-  uint16_t lcolor = 0;
   server.begin();
   SERIAL_DEBUG.print(F("Started "));
 
   if (con_type == WIFI_STA) {
     SERIAL_DEBUG.print(F("WIFI_STA"));
-    lcolor=COLOR_GREEN;
   } else if (con_type == WIFI_AP_STA) {
     SERIAL_DEBUG.print(F("WIFI_AP_STA"));
-    lcolor=COLOR_CYAN;
   } else if (con_type == WIFI_AP) {
     SERIAL_DEBUG.print(F("WIFI_AP"));
-    lcolor=COLOR_MAGENTA;
   } else {
     SERIAL_DEBUG.print(F("????"));
-    lcolor = COLOR_RED;
   }
 
   SERIAL_DEBUG.print(F("on HTTP://"));
@@ -831,23 +431,6 @@ void setup() {
   SERIAL_DEBUG.print(F(" and WS://"));
   SERIAL_DEBUG.print(WiFi.localIP());
   SERIAL_DEBUG.println(F("/ws"));
-
-  // Set Breathing color during startup script
-  LedRGBON(lcolor, true);
-
-  // Run startup script if any
-  execCommand(NULL, PSTR("read /startup.ini") );
-
-  // We're alive, CYAN LED
-  // move animation from fade to blink
-  #ifdef RGB_LED_PIN
-  rgb_anim_state=RGB_ANIM_BLINK_ON;
-  LedRGBON(COLOR_CYAN, true);
-  #endif
-
-  #ifdef RN2483
-  app_state = APP_IDLE;
-  #endif
 }
 
 /* ======================================================================
@@ -860,8 +443,6 @@ Comments: -
 void loop() {
   static bool led_state ; 
   bool new_led_state ; 
-  uint16_t anim_speed;
-  uint8_t button_port;
 
   #ifdef SERIAL_DEVICE
   // Got one serial char ?
@@ -880,12 +461,6 @@ void loop() {
       // Display on debug
       SERIAL_DEBUG.printf("  <- \"%s\"\r\n", inputString.c_str());
 
-      #ifdef MOD_RN2483
-        if (radioResponse(inputString)) {
-          delay(200);
-        }
-      #endif
-
       inputString = "";
     } else {
       // Add char to input string
@@ -900,10 +475,8 @@ void loop() {
   // Led blink management 
   if (WiFi.status()==WL_CONNECTED) {
     new_led_state = ((millis() % 1000) < 200) ? LOW:HIGH; // Connected long blink 200ms on each second
-    anim_speed = 1000;
   } else {
     new_led_state = ((millis() % 333) < 111) ? LOW:HIGH;// AP Mode or client failed quick blink 111ms on each 1/3sec
-    anim_speed = 333;
   }
     // Led management
   if (led_state != new_led_state) {
@@ -914,61 +487,6 @@ void loop() {
     #endif
   }
 
-  #if defined (BTN_GPIO) && defined (MOD_RN2483)
-
-  // Get switch port state 
-  button_port = digitalRead(BTN_GPIO);
-
-  // Button pressed 
-  if (button_port==BTN_PRESSED){
-    btn_state_e btn_state;
-
-    // we enter into the loop to manage
-    // the function that will be done
-    // depending on button press duration
-    do {
-      // keep watching the push button:
-      btn_state = buttonManageState(button_port);
-
-      // read new state button
-      button_port = digitalRead(BTN_GPIO);
-
-      // this loop can be as long as button is pressed
-      yield();
-      ArduinoOTA.handle();
-    }
-    // we loop until button state machine finished
-    while (btn_state != BTN_WAIT_PUSH);
-
-    // Do what we need to do depending on action
-    radioManageState(_btn_Action);
-
-    //SERIAL_DEBUG.printf("Button %d\r\n", _btn_Action);
-
-  // button not pressed
-  } else {
-    radioManageState(BTN_NONE);
-  }
-
-  // move next animation to blink
-  if (radioState()==RADIO_IDLE && app_state==APP_IDLE) {
-    rgb_anim_state=RGB_ANIM_BLINK_ON;
-    LedRGBON(COLOR_CYAN);
-  }
-  // move next animation to default fade
-  if (app_state==APP_CONTINUOUS_LISTEN) {
-    rgb_anim_state=RGB_ANIM_NONE;
-    LedRGBON(COLOR_CYAN);
-  }
-  if (radioState()==RADIO_IDLE && app_state==APP_CONTINUOUS_SEND) {
-    rgb_anim_state=RGB_ANIM_NONE;
-    LedRGBON(COLOR_MAGENTA);
-  }
-  #endif
-
   // Handle remote Wifi Updates
   ArduinoOTA.handle();
-
-  // RGB LED Animation
-  LedRGBAnimate(anim_speed);
 }

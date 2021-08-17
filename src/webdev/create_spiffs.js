@@ -36,10 +36,8 @@ copyCreate('js/jquery-1.12.3.js',true);
 copyCreate('js/reconn-ws.js',true);
 copyCreate('css/terminal.css',true);
 copyCreate('index.htm');
-copyCreate('edit.htm');
 copyCreate('favicon.ico');
 copyCreate('startup.ini');
-copyCreate('rn2483.txt');
 console.log('finished!, upload to target from Arduino IDE');
 
 

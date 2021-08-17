@@ -26,19 +26,6 @@ var ws = require('websocket').server;
 
 var clientid=0;
 
-
-function list() {
-return[	{"type":"file","name":"css/terminal.css.gz"},
-				{"type":"file","name":"favicon.ico"},
-				{"type":"file","name":"js/jquery-1.12.3.js.gz"},
-				{"type":"file","name":"js/mousewheel.js.gz"},
-				{"type":"file","name":"js/terminal.js.gz"},
-				{"type":"file","name":"edit.htm"},
-				{"type":"file","name":"index.htm"},
-				{"type":"file","name":"rn2483.txt"},
-				{"type":"file","name":"startup.ini"}]
-}
-
 //Lets use our dispatcher
 function handleRequest(req, res) {
   try {
@@ -72,12 +59,6 @@ dispatcher.onGet("/heap", function(req, res) {
       res.end(humanSize(os.freemem()));
 });  
 
-dispatcher.onGet("/list", function(req, res) {
-      res.writeHead(200, {"Content-Type": "text/json"});
-      res.end(JSON.stringify(list()));
-});   
-
-
 // Not found, try to read file from disk and send to client
 dispatcher.onError(function(req, res) {
   var uri = url.parse(req.url).pathname;
@@ -85,7 +66,7 @@ dispatcher.onError(function(req, res) {
 	var extname = path.extname(filePath);
 
 	if (filePath == './') 		filePath = './index.htm';
-	if (filePath == './edit')	filePath = './edit.htm';
+	// if (filePath == './some_other_file_here')	filePath = './some_other_file_here.htm';
 
 	var contentType = mime.getType(filePath);
 
