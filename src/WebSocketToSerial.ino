@@ -63,18 +63,18 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
                               serialSwapped?13:3,serialSwapped?15:1);
 
   // Debug information
-  } else if ( !strncmp_P(msg,PSTR("/debug"), 5) ) {
+  } else if ( !strncmp_P(msg,PSTR("/debug"), 6) ) {
     int br = SERIAL_DEVICE.baudRate();
     if (client) {
       client->printf_P(PSTR("Baud Rate : [[b;green;]%d] bps"), br);
     }
 
   // baud only display current Serial Speed
-  } else if ( client && l==4 && !strncmp_P(msg,PSTR("/baud"), 4) ) {
+  } else if ( client && l==5 && !strncmp_P(msg,PSTR("/baud"), 5) ) {
     client->printf_P(PSTR("Current Baud Rate is [[b;green;]%d] bps"), SERIAL_DEVICE.baudRate());
 
   // baud speed only display current Serial Speed
-  } else if (l>=6 && !strncmp_P(msg,PSTR("/baud "), 5) ) {
+  } else if (l>=7 && !strncmp_P(msg,PSTR("/baud "), 6) ) {
     uint32_t br = atoi(&msg[5]);
     if ( br==115200 || br==57600 || br==19200 || br==9600 ) {
       #ifdef MOD_TERMINAL
@@ -93,7 +93,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
 
   // no delay in client (websocket)
   // ----------------------------
-  } else if (client==NULL && l>=7 && !strncmp_P(msg,PSTR("/delay "), 6) ) {
+  } else if (client==NULL && l>=8 && !strncmp_P(msg,PSTR("/delay "), 7) ) {
     uint16_t v= atoi(&msg[6]);
     if (v>=0 && v<=60000 ) {
       while(v--) {
@@ -102,7 +102,7 @@ void execCommand(AsyncWebSocketClient * client, char * msg) {
     }
 
   // ----------------------------
-  } else if (l>=7 && !strncmp_P(msg,PSTR("/reset "), 6) ) {
+  } else if (l>=8 && !strncmp_P(msg,PSTR("/reset "), 7) ) {
     int v= atoi(&msg[6]);
     if (v>=0 && v<=16) {
       pinMode(v, OUTPUT);
